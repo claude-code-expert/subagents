@@ -200,6 +200,8 @@ Enable automatic pipeline chaining by adding to `~/.claude/settings.json`:
 
 ### Auto Routing (UserPromptSubmit Hook)
 
+![Squad Router Flow](docs/wireframes/squad-router-flow.svg)
+
 You can invoke subagents with natural language — no slash commands needed. `install.sh` auto-registers the `UserPromptSubmit` hook.
 
 ```

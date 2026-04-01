@@ -200,6 +200,8 @@ squad-plan → [구현] → squad-review → squad-qa → squad-gitops
 
 ### 자동 라우팅 (UserPromptSubmit Hook)
 
+![Squad Router Flow](docs/wireframes/squad-router-flow.svg)
+
 슬래시 커맨드 없이도 자연어로 서브에이전트를 호출할 수 있습니다. `install.sh`가 `UserPromptSubmit` 훅을 자동 등록합니다.
 
 ```
