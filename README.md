@@ -10,7 +10,7 @@
 
 ## Quick Start
 
-### Option 1: One-line Install (curl) — Recommended
+### Option 1: One-line Install (curl)
 
 ```bash
 curl -sL https://raw.githubusercontent.com/claude-code-expert/subagents/main/install.sh | bash
@@ -41,18 +41,119 @@ bash install.sh
 
 ---
 
+## How Subagents Work
+
+### What is a Subagent?
+
+A subagent is a specialized AI instance running inside your main Claude Code session with its **own independent context window**. When you ask "review this code" in a normal chat, all analysis fills your main context. With a subagent, heavy analysis happens in a separate window — only the summary returns.
+
+### Internal Mechanism
+
+Subagents are invoked via Claude Code's built-in **Task tool** — not by running `claude -p` in bash.
+
+```
+1. User: "/squad-review src/auth/"
+
+2. Main session → Task(subagent_type="squad-review", prompt="...")
+   Delegates via Task tool
+
+3. New context window created:
+   - System prompt from squad-review.md loaded
+   - Only tools listed in frontmatter available
+   - Model specified in frontmatter used
+
+4. Subagent works in its own context:
+   - git diff, file reads, analysis — all stay in subagent context
+   - Main session context does NOT grow
+
+5. Result returned:
+   - Only the final message returns to main session
+   - Subagent context is discarded
+```
+
+### Honest Token Economics
+
+> **"Subagents save tokens" is a common misconception. They actually use MORE.**
+
+The value of subagents is not token savings — it's **main context quality preservation**.
+
+#### Example: Code review on 20 changed files
+
+**Inline (no subagent):**
+
+```
+Main context: 24k (conversation) + 30k (git diff) + 16k (file reads) + 15k (analysis) = 85k
+Remaining for coding: 115k / 200k
+Total tokens consumed: ~85k
+```
+
+**With squad-review subagent:**
+
+```
+Main context:     24k (conversation) + 2k (returned summary) = 26k
+Subagent context: 4k (system) + 30k (diff) + 16k (reads) + 15k (analysis) + 4k (overhead) = 69k (discarded)
+Remaining for coding: 174k / 200k
+Total tokens consumed: ~95k (MORE than inline)
+```
+
+| Metric | Inline | Subagent |
+|--------|--------|----------|
+| Main context used | 85k | 26k |
+| Total tokens consumed | 85k | **95k (+12%)** |
+| Remaining workspace | 115k | **174k (+51%)** |
+| Session quality over time | Degrades (context rot) | **Maintained** |
+
+#### Parallel execution cost
+
+Per Anthropic docs, multi-agent workflows use roughly **4-7x more tokens** than single-agent sessions. Real-world reports: 5 parallel subagents on Pro plan exhausted limits in 15 minutes (vs 30 minutes sequential).
+
+#### When subagents are worth it
+
+| Worth it | Not worth it |
+|----------|-------------|
+| Verbose output (large diffs, logs) | Simple single-file lookups |
+| Long sessions (context rot prevention) | Short sessions |
+| Read-heavy research & exploration | Holistic codebase reasoning |
+| Parallel independent analyses | Sequential dependent steps |
+| Enforcing tool restrictions (Read-only) | Tasks needing all tools |
+
+> **Bottom line:** Subagents are a **context hygiene tool**, not a token savings tool. They keep your main session clean so quality doesn't degrade. You pay more tokens total, but you get a better workspace.
+
+### Why Use Subagents?
+
+1. **Context isolation** — 30k git diff stays in subagent only; main gets 2k summary
+2. **Tool scoping** — squad-review is Read-only. Hard constraint at tool level (not prompt)
+3. **Parallel execution** — Analyze multiple modules simultaneously
+4. **Model routing** — Security gets opus, commit messages get haiku for cost optimization
+
+### Agent Definition Format
+
+```markdown
+---
+name: squad-review                    # Agent ID
+description: >                        # Auto-delegation trigger
+  Use PROACTIVELY after code changes.
+tools: Read, Grep, Glob, Bash         # Allowed tools (hard constraint)
+model: opus                           # Model
+maxTurns: 15                          # Safety limit
+---
+You are a senior staff engineer...    # System prompt
+```
+
+---
+
 ## Agents
 
 | Agent | Role | Model | Tools |
 |-------|------|-------|-------|
-| `squad-review` | Code review | opus | Read, Bash, Glob, Grep |
-| `squad-plan` | Planning & wireframes | opus | Read, Write, Edit, Bash, Glob, Grep |
-| `squad-refactor` | Refactoring | opus | Read, Write, Edit, Bash, Glob, Grep |
-| `squad-qa` | Testing & QA | sonnet | Read, Bash, Glob, Grep |
-| `squad-debug` | Debugging | opus | Read, Bash, Glob, Grep |
-| `squad-docs` | Documentation | sonnet | Read, Write, Edit, Glob, Grep |
-| `squad-gitops` | Git automation | haiku | Read, Bash, Glob, Grep |
-| `squad-audit` | Security audit | opus | Read, Bash, Glob, Grep |
+| `squad-review` | Code review | opus | Read-only |
+| `squad-plan` | Planning & wireframes | opus | Read+Write |
+| `squad-refactor` | Refactoring | opus | Read+Write |
+| `squad-qa` | Testing & QA | sonnet | Read+Bash |
+| `squad-debug` | Debugging | opus | Read+Bash |
+| `squad-docs` | Documentation | sonnet | Read+Write |
+| `squad-gitops` | Git automation | haiku | Read+Bash |
+| `squad-audit` | Security audit | opus | Read-only |
 
 ---
 
@@ -75,138 +176,54 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 - `squad-audit` — Security scanning
 - `squad-docs` — Documentation generation
 
-### Pipeline Hooks
+### SubagentStop Hook (Optional)
 
-`install.sh` automatically registers `SubagentStart` and `SubagentStop` hooks in `~/.claude/settings.json`.
-
-- **SubagentStart** — OS notification + sound when a squad agent starts
-- **SubagentStop** — OS notification with next pipeline step
-
-> **Note**: Claude Code is a TUI app — `stdout`/`stderr` from SubagentStart/Stop hooks are not displayed in the terminal. The hook uses OS-native notifications instead. See [Notifications](#notifications) for details.
-
-If `jq` is not installed, add manually to `~/.claude/settings.json`:
+Enable automatic pipeline chaining by adding to `~/.claude/settings.json`:
 
 ```jsonc
 {
   "hooks": {
-    "SubagentStart": [{ "matcher": "", "hooks": [{ "type": "command", "command": "zsh ~/.claude/hooks/subagent-chain.sh" }] }],
-    "SubagentStop":  [{ "matcher": "", "hooks": [{ "type": "command", "command": "zsh ~/.claude/hooks/subagent-chain.sh" }] }]
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "zsh ~/.claude/hooks/subagent-chain.sh"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-### Subagent Verification
+### Auto Routing (UserPromptSubmit Hook)
 
-All 8 agents are verified to run as independent sub-agents (`isSidechain: true`) with correct model routing:
-
-| Agent | isSidechain | Model Applied |
-|-------|-------------|---------------|
-| squad-review | `true` | opus |
-| squad-plan | `true` | opus |
-| squad-refactor | `true` | opus |
-| squad-qa | `true` | sonnet |
-| squad-debug | `true` | opus |
-| squad-docs | `true` | sonnet |
-| squad-gitops | `true` | haiku |
-| squad-audit | `true` | opus |
-
-Each agent gets a unique `agentId`, separate transcript file, and isolated execution context managed by Claude Code internally.
-
----
-
-## Notifications
-
-When a squad agent starts or completes, the hook sends an **OS-native notification** with sound. This works across macOS, Linux, and Windows (WSL).
-
-### What you'll see
-
-| Event | Notification Title | Notification Body | Sound |
-|-------|---------------------|-------------------|-------|
-| Agent starts | 🚀 Squad: `{agent}` | Status: RUNNING | Pop (macOS) / message.oga (Linux) |
-| Agent completes | ✅ Squad: `{agent}` | COMPLETED → next step | Glass (macOS) / message.oga (Linux) |
-
-**Example**: When running `/squad-review`:
+You can invoke subagents with natural language — no slash commands needed. `install.sh` auto-registers the `UserPromptSubmit` hook.
 
 ```
-🚀 Squad: review          →  ✅ Squad: review
-"Status: RUNNING"             "COMPLETED → /squad-refactor or /squad-qa"
+"review this code"     → squad-review
+"debug this error"     → squad-debug
+"security check"       → squad-audit
+"run the tests"        → squad-qa
+"plan the feature"     → squad-plan
+"refactor this"        → squad-refactor
+"document this API"    → squad-docs
+"write commit message" → squad-gitops
 ```
 
-### Platform Support
+80 keywords (42 Korean / 38 English) are mapped across 8 agents. Conflicting keywords (e.g., "PR review" vs "PR write") are automatically resolved to the correct agent.
 
-| Platform | Notification | Sound | Requirement |
-|----------|-------------|-------|-------------|
-| **macOS** | `osascript` (Notification Center) | `afplay` (Pop.aiff / Glass.aiff) | Built-in |
-| **Linux** | `notify-send` (libnotify) | `paplay` or `aplay` | `sudo apt install libnotify-bin` |
-| **Windows (WSL)** | PowerShell popup | — | WSL auto-detected |
-| **Windows (native)** | PowerShell popup | — | Git Bash / MSYS2 |
+**Opt-out:**
 
-### Customizing Notifications
+| Method | Scope | Example |
+|--------|-------|---------|
+| `--no-route` in prompt | Per-prompt | "review this --no-route" |
+| `SQUAD_ROUTER=off` | Global (env) | Disables all routing |
+| `/squad-*` slash command | Automatic | Slash commands skip routing |
 
-#### Disable notifications
-
-Remove the hook entries from `~/.claude/settings.json`:
-
-```bash
-# Using jq
-jq 'del(.hooks.SubagentStart, .hooks.SubagentStop)' ~/.claude/settings.json > tmp.json && mv tmp.json ~/.claude/settings.json
-```
-
-Or manually delete the `SubagentStart` and `SubagentStop` keys from the `hooks` object.
-
-#### Disable sound only
-
-Edit `~/.claude/hooks/subagent-chain.sh` and comment out the `play_sound` lines:
-
-```bash
-# play_sound "Pop"    # comment out to disable start sound
-# play_sound "Glass"  # comment out to disable stop sound
-```
-
-#### Change sound
-
-**macOS**: Available sounds are in `/System/Library/Sounds/`:
-
-```
-Basso.aiff    Blow.aiff    Bottle.aiff    Frog.aiff    Funk.aiff
-Glass.aiff    Hero.aiff    Morse.aiff     Ping.aiff    Pop.aiff
-Purr.aiff     Sosumi.aiff  Submarine.aiff Tink.aiff
-```
-
-Edit the `play_sound` function in `~/.claude/hooks/subagent-chain.sh` to change sounds.
-
-**Linux**: Default sounds use freedesktop paths. Point to any `.oga` or `.wav` file:
-
-```bash
-paplay /path/to/your/sound.oga
-```
-
-#### Notification only for specific agents
-
-Edit the agent filter in `~/.claude/hooks/subagent-chain.sh`:
-
-```bash
-# Default: all squad agents
-case "$AGENT_NAME" in squad-*) ;; *) exit 0 ;; esac
-
-# Example: only review and audit
-case "$AGENT_NAME" in squad-review|squad-audit) ;; *) exit 0 ;; esac
-```
-
-#### Use a different notification tool
-
-You can replace the `notify()` function in `~/.claude/hooks/subagent-chain.sh`. Examples:
-
-```bash
-# Slack webhook
-curl -s -X POST "$SLACK_WEBHOOK_URL" -d "{\"text\":\"${title}: ${body}\"}" &
-
-# ntfy.sh (self-hosted or public)
-curl -s -d "${body}" "ntfy.sh/my-squad-topic" &
-
-# terminal-notifier (macOS, more options)
-terminal-notifier -title "${title}" -message "${body}" -sound default &
-```
+See [docs/SQUAD-ROUTER-KEYWORDS.md](docs/SQUAD-ROUTER-KEYWORDS.md) for the full keyword reference.
 
 ---
 
@@ -286,7 +303,7 @@ Place `.claude/agents/squad-review.md` in your project to override the global ve
 name: squad-review
 description: >
   Expert code review for MyProject.
-tools: Read, Bash, Glob, Grep
+tools: Read, Grep, Glob, Bash
 model: opus
 ---
 
@@ -304,7 +321,7 @@ model: opus
 bash install.sh --uninstall
 ```
 
-This removes only Squad Agent files from `~/.claude/`. Backup files (`.bak`) are preserved. Hook entries in `settings.json` must be removed manually.
+This removes only Squad Agent files from `~/.claude/`. Backup files (`.bak`) are preserved.
 
 ---
 

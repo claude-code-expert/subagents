@@ -10,7 +10,7 @@
 
 ## 빠른 시작
 
-### 방법 1: 원라인 설치 (curl) — 권장
+### 방법 1: 원라인 설치 (curl)
 
 ```bash
 curl -sL https://raw.githubusercontent.com/claude-code-expert/subagents/main/install.sh | bash
@@ -41,18 +41,119 @@ bash install.sh
 
 ---
 
+## 서브에이전트 동작 원리
+
+### 서브에이전트란?
+
+서브에이전트는 메인 Claude Code 세션 안에서 **독립된 컨텍스트 윈도우**를 갖고 동작하는 전문화된 AI 인스턴스입니다. 일반 대화에서 "코드 리뷰해줘"라고 하면 모든 분석 과정이 하나의 컨텍스트에 쌓이지만, 서브에이전트에 위임하면 분석은 별도 윈도우에서 일어나고 메인에는 요약만 돌아옵니다.
+
+### 내부 동작
+
+서브에이전트는 Claude Code의 **Task 도구**를 통해 호출됩니다. `bash`로 `claude -p`를 실행하는 것이 아닙니다.
+
+```
+1. 사용자: "/squad-review src/auth/"
+
+2. 메인 세션 → Task(subagent_type="squad-review", prompt="...")
+   Task 도구로 위임
+
+3. 새 컨텍스트 윈도우 생성:
+   - squad-review.md의 시스템 프롬프트 로드
+   - frontmatter에 명시된 도구만 사용 가능
+   - frontmatter에 명시된 모델 사용
+
+4. 서브에이전트가 자체 컨텍스트에서 작업:
+   - git diff, 파일 읽기, 분석 — 모두 서브에이전트 컨텍스트에만 남음
+   - 메인 세션 컨텍스트는 증가하지 않음
+
+5. 결과 반환:
+   - 최종 메시지만 메인 세션에 반환
+   - 서브에이전트 컨텍스트는 폐기
+```
+
+### 솔직한 토큰 비용 구조
+
+> **"서브에이전트가 토큰을 절약한다"는 흔한 오해입니다. 실제로는 더 씁니다.**
+
+서브에이전트의 가치는 토큰 절약이 아니라 **메인 컨텍스트 품질 유지**입니다.
+
+#### 예시: 20개 파일 변경 리뷰
+
+**인라인 (서브에이전트 없음):**
+
+```
+메인 컨텍스트: 24k (대화) + 30k (git diff) + 16k (파일 읽기) + 15k (분석) = 85k
+코딩 가능 용량: 115k / 200k
+총 토큰 소비: ~85k
+```
+
+**squad-review 서브에이전트 사용:**
+
+```
+메인 컨텍스트:       24k (대화) + 2k (반환된 요약) = 26k
+서브에이전트 컨텍스트: 4k (시스템) + 30k (diff) + 16k (읽기) + 15k (분석) + 4k (오버헤드) = 69k (폐기됨)
+코딩 가능 용량: 174k / 200k
+총 토큰 소비: ~95k (인라인보다 더 많음)
+```
+
+| 지표 | 인라인 | 서브에이전트 |
+|------|--------|------------|
+| 메인 컨텍스트 사용 | 85k | 26k |
+| 총 토큰 소비 | 85k | **95k (+12%)** |
+| 작업 가능 공간 | 115k | **174k (+51%)** |
+| 세션 후반 품질 | 저하 (context rot) | **유지** |
+
+#### 병렬 실행 비용
+
+Anthropic 문서에 따르면 멀티 에이전트 워크플로우는 단일 에이전트 대비 **4~7배의 토큰**을 소비합니다. 실측 보고에 따르면 Pro plan에서 5개 병렬 서브에이전트를 실행하면 15분 만에 사용량 한도에 도달합니다 (순차 처리 시 30분).
+
+#### 가치 있는 경우
+
+| 가치 있음 | 비효율적 |
+|----------|---------|
+| 대량 출력 (큰 diff, 로그) | 단일 파일 조회 |
+| 긴 세션 (context rot 방지) | 짧은 세션 |
+| 읽기 중심 탐색·분석 | 코드베이스 전체 추론 |
+| 병렬 독립 분석 | 순차 의존 작업 |
+| 도구 제한 강제 (Read-only) | 모든 도구 필요 작업 |
+
+> **결론:** 서브에이전트는 **컨텍스트 위생 도구**입니다. 총 토큰은 더 쓰지만, 메인 세션이 깨끗하게 유지되어 세션 후반부 품질 저하를 방지합니다.
+
+### 쓰는 이유
+
+1. **컨텍스트 격리** — 30k git diff가 서브에이전트에만 남고, 메인에는 요약 2k만 반환
+2. **도구 제한** — squad-review는 Read-only. 도구 레벨 하드 제약 (프롬프트가 아님)
+3. **병렬 실행** — 여러 모듈을 동시에 분석
+4. **모델 라우팅** — 보안은 opus, 커밋 메시지는 haiku로 비용 최적화
+
+### 에이전트 정의 형식
+
+```markdown
+---
+name: squad-review                    # 에이전트 ID
+description: >                        # 자동 위임 트리거
+  Use PROACTIVELY after code changes.
+tools: Read, Grep, Glob, Bash         # 허용 도구 (하드 제약)
+model: opus                           # 모델
+maxTurns: 15                          # 안전 제한
+---
+당신은 시니어 스태프 엔지니어...       # 시스템 프롬프트
+```
+
+---
+
 ## 에이전트
 
 | 에이전트 | 역할 | 모델 | 도구 |
 |---------|------|------|------|
-| `squad-review` | 코드 리뷰 | opus | Read, Bash, Glob, Grep |
-| `squad-plan` | 기획 & 와이어프레임 | opus | Read, Write, Edit, Bash, Glob, Grep |
-| `squad-refactor` | 리팩토링 | opus | Read, Write, Edit, Bash, Glob, Grep |
-| `squad-qa` | 테스트 & QA | sonnet | Read, Bash, Glob, Grep |
-| `squad-debug` | 디버깅 | opus | Read, Bash, Glob, Grep |
-| `squad-docs` | 문서 작성 | sonnet | Read, Write, Edit, Glob, Grep |
-| `squad-gitops` | Git 자동화 | haiku | Read, Bash, Glob, Grep |
-| `squad-audit` | 보안 감사 | opus | Read, Bash, Glob, Grep |
+| `squad-review` | 코드 리뷰 | opus | Read-only |
+| `squad-plan` | 기획 & 와이어프레임 | opus | Read+Write |
+| `squad-refactor` | 리팩토링 | opus | Read+Write |
+| `squad-qa` | 테스트 & QA | sonnet | Read+Bash |
+| `squad-debug` | 디버깅 | opus | Read+Bash |
+| `squad-docs` | 문서 작성 | sonnet | Read+Write |
+| `squad-gitops` | Git 자동화 | haiku | Read+Bash |
+| `squad-audit` | 보안 감사 | opus | Read-only |
 
 ---
 
@@ -75,138 +176,54 @@ squad-plan → [구현] → squad-review → squad-qa → squad-gitops
 - `squad-audit` — 보안 스캐닝
 - `squad-docs` — 문서 생성
 
-### 파이프라인 훅
+### SubagentStop 훅 (선택)
 
-`install.sh`가 `SubagentStart`/`SubagentStop` 훅을 `~/.claude/settings.json`에 자동 등록합니다.
-
-- **SubagentStart** — 에이전트 시작 시 OS 알림 + 사운드
-- **SubagentStop** — 완료 알림 + 다음 단계 안내
-
-> **참고**: Claude Code는 TUI 앱이라 SubagentStart/Stop 훅의 `stdout`/`stderr`가 터미널에 표시되지 않습니다. 대신 OS 네이티브 알림을 사용합니다. 자세한 내용은 [알림](#알림) 섹션을 참고하세요.
-
-`jq`가 없는 경우 수동으로 `~/.claude/settings.json`에 추가하세요:
+자동 파이프라인 체이닝을 위해 `~/.claude/settings.json`에 추가:
 
 ```jsonc
 {
   "hooks": {
-    "SubagentStart": [{ "matcher": "", "hooks": [{ "type": "command", "command": "zsh ~/.claude/hooks/subagent-chain.sh" }] }],
-    "SubagentStop":  [{ "matcher": "", "hooks": [{ "type": "command", "command": "zsh ~/.claude/hooks/subagent-chain.sh" }] }]
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "zsh ~/.claude/hooks/subagent-chain.sh"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
-### 서브에이전트 검증
+### 자동 라우팅 (UserPromptSubmit Hook)
 
-8개 에이전트 모두 독립 서브에이전트(`isSidechain: true`)로 실행되며, 모델 라우팅이 정확히 적용됨을 검증했습니다:
-
-| 에이전트 | isSidechain | 적용 모델 |
-|---------|-------------|----------|
-| squad-review | `true` | opus |
-| squad-plan | `true` | opus |
-| squad-refactor | `true` | opus |
-| squad-qa | `true` | sonnet |
-| squad-debug | `true` | opus |
-| squad-docs | `true` | sonnet |
-| squad-gitops | `true` | haiku |
-| squad-audit | `true` | opus |
-
-각 에이전트는 고유한 `agentId`, 별도의 transcript 파일, Claude Code가 관리하는 격리된 실행 컨텍스트를 가집니다.
-
----
-
-## 알림
-
-Squad 에이전트가 시작되거나 완료되면 훅이 **OS 네이티브 알림**과 사운드를 전송합니다. macOS, Linux, Windows(WSL) 모두 지원합니다.
-
-### 알림 내용
-
-| 이벤트 | 알림 제목 | 알림 본문 | 사운드 |
-|--------|----------|----------|--------|
-| 에이전트 시작 | 🚀 Squad: `{agent}` | Status: RUNNING | Pop (macOS) / message.oga (Linux) |
-| 에이전트 완료 | ✅ Squad: `{agent}` | COMPLETED → 다음 단계 | Glass (macOS) / message.oga (Linux) |
-
-**예시**: `/squad-review` 실행 시:
+슬래시 커맨드 없이도 자연어로 서브에이전트를 호출할 수 있습니다. `install.sh`가 `UserPromptSubmit` 훅을 자동 등록합니다.
 
 ```
-🚀 Squad: review          →  ✅ Squad: review
-"Status: RUNNING"             "COMPLETED → /squad-refactor or /squad-qa"
+"이 코드 리뷰해줘"    → squad-review
+"에러가 나요"          → squad-debug
+"보안 검사해줘"        → squad-audit
+"테스트 돌려줘"        → squad-qa
+"기획해줘"             → squad-plan
+"리팩토링 해줘"        → squad-refactor
+"문서 작성해줘"        → squad-docs
+"커밋 메시지 작성해"   → squad-gitops
 ```
 
-### 플랫폼 지원
+80개 키워드 (한국어 42 / 영어 38)가 8개 에이전트에 매핑됩니다. 충돌하는 키워드(예: "PR 리뷰" vs "PR 작성")는 자동으로 올바른 에이전트로 해결됩니다.
 
-| 플랫폼 | 알림 | 사운드 | 요구사항 |
-|--------|------|--------|---------|
-| **macOS** | `osascript` (알림 센터) | `afplay` (Pop.aiff / Glass.aiff) | 기본 내장 |
-| **Linux** | `notify-send` (libnotify) | `paplay` 또는 `aplay` | `sudo apt install libnotify-bin` |
-| **Windows (WSL)** | PowerShell 팝업 | — | 자동 감지 |
-| **Windows (네이티브)** | PowerShell 팝업 | — | Git Bash / MSYS2 |
+**비활성화:**
 
-### 알림 설정 변경
+| 방법 | 범위 | 예시 |
+|------|------|------|
+| `--no-route` 프롬프트에 추가 | 건별 | "리뷰해줘 --no-route" |
+| `SQUAD_ROUTER=off` | 전역 (환경변수) | 전체 비활성화 |
+| `/squad-*` 슬래시 커맨드 | 자동 | 자동 스킵 |
 
-#### 알림 끄기
-
-`~/.claude/settings.json`에서 훅 항목을 제거하세요:
-
-```bash
-# jq 사용
-jq 'del(.hooks.SubagentStart, .hooks.SubagentStop)' ~/.claude/settings.json > tmp.json && mv tmp.json ~/.claude/settings.json
-```
-
-또는 `hooks` 객체에서 `SubagentStart`와 `SubagentStop` 키를 수동으로 삭제하세요.
-
-#### 사운드만 끄기
-
-`~/.claude/hooks/subagent-chain.sh`를 편집하고 `play_sound` 라인을 주석 처리하세요:
-
-```bash
-# play_sound "Pop"    # 시작 사운드 비활성화
-# play_sound "Glass"  # 종료 사운드 비활성화
-```
-
-#### 사운드 변경
-
-**macOS**: 사용 가능한 사운드는 `/System/Library/Sounds/`에 있습니다:
-
-```
-Basso.aiff    Blow.aiff    Bottle.aiff    Frog.aiff    Funk.aiff
-Glass.aiff    Hero.aiff    Morse.aiff     Ping.aiff    Pop.aiff
-Purr.aiff     Sosumi.aiff  Submarine.aiff Tink.aiff
-```
-
-`~/.claude/hooks/subagent-chain.sh`의 `play_sound` 함수를 편집하여 사운드를 변경하세요.
-
-**Linux**: 기본 freedesktop 경로를 사용합니다. 임의의 `.oga` 또는 `.wav` 파일로 지정 가능:
-
-```bash
-paplay /path/to/your/sound.oga
-```
-
-#### 특정 에이전트만 알림 받기
-
-`~/.claude/hooks/subagent-chain.sh`에서 에이전트 필터를 편집하세요:
-
-```bash
-# 기본값: 모든 squad 에이전트
-case "$AGENT_NAME" in squad-*) ;; *) exit 0 ;; esac
-
-# 예시: review와 audit만
-case "$AGENT_NAME" in squad-review|squad-audit) ;; *) exit 0 ;; esac
-```
-
-#### 다른 알림 도구 사용
-
-`~/.claude/hooks/subagent-chain.sh`의 `notify()` 함수를 교체할 수 있습니다:
-
-```bash
-# Slack 웹훅
-curl -s -X POST "$SLACK_WEBHOOK_URL" -d "{\"text\":\"${title}: ${body}\"}" &
-
-# ntfy.sh (셀프 호스팅 또는 퍼블릭)
-curl -s -d "${body}" "ntfy.sh/my-squad-topic" &
-
-# terminal-notifier (macOS, 옵션 더 많음)
-terminal-notifier -title "${title}" -message "${body}" -sound default &
-```
+전체 키워드 목록은 [docs/SQUAD-ROUTER-KEYWORDS.md](docs/SQUAD-ROUTER-KEYWORDS.md)를 참고하세요.
 
 ---
 
@@ -286,7 +303,7 @@ terminal-notifier -title "${title}" -message "${body}" -sound default &
 name: squad-review
 description: >
   Expert code review for MyProject.
-tools: Read, Bash, Glob, Grep
+tools: Read, Grep, Glob, Bash
 model: opus
 ---
 
@@ -304,7 +321,7 @@ model: opus
 bash install.sh --uninstall
 ```
 
-Squad Agent 파일만 `~/.claude/`에서 제거합니다. 백업 파일(`.bak`)은 유지됩니다. `settings.json`의 훅 항목은 수동으로 제거해야 합니다.
+Squad Agent 파일만 `~/.claude/`에서 제거합니다. 백업 파일(`.bak`)은 유지됩니다.
 
 ---
 
