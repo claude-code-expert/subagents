@@ -10,7 +10,7 @@
 
 ## 빠른 시작
 
-### 방법 1: 원라인 설치 (curl)
+### 방법 1: 원라인 설치 (curl) — 권장
 
 ```bash
 curl -sL https://raw.githubusercontent.com/claude-code-expert/subagents/main/install.sh | bash
