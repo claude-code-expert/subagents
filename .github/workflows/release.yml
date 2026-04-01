@@ -24,8 +24,9 @@ jobs:
           cp -r agents commands hooks install.sh VERSION LICENSE README.md dist/squad-agents/
           cd dist
           tar czf "squad-agents-${{ steps.version.outputs.version }}.tar.gz" squad-agents/
+          shasum -a 256 "squad-agents-${{ steps.version.outputs.version }}.tar.gz" > "squad-agents-${{ steps.version.outputs.version }}.tar.gz.sha256"
           cd ..
-          cp dist/*.tar.gz .
+          cp dist/*.tar.gz dist/*.sha256 .
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -49,4 +50,5 @@ jobs:
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           files: |
             squad-agents-${{ steps.version.outputs.version }}.tar.gz
+            squad-agents-${{ steps.version.outputs.version }}.tar.gz.sha256
           generate_release_notes: true

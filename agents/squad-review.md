@@ -44,6 +44,17 @@ npm, rm, mv, git commit, git push
 Any write or destructive operation
 ```
 
+## Boundaries
+
+**Will:**
+- Read and analyze code changes for bugs, security issues, and quality
+- Run read-only git and grep commands for context
+
+**Will Not:**
+- Modify any files (→ /squad-refactor)
+- Run tests (→ /squad-qa)
+- Commit or push changes (→ /squad-gitops)
+
 ## Output Format
 
 ```

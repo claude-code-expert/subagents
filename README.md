@@ -45,14 +45,14 @@ bash install.sh
 
 | Agent | Role / 역할 | Model | Tools |
 |-------|-------------|-------|-------|
-| `squad-review` | Code review / 코드 리뷰 | opus | Read-only |
-| `squad-plan` | Planning & wireframes / 기획 | opus | Read+Write |
-| `squad-refactor` | Refactoring / 리팩토링 | opus | Read+Write |
-| `squad-qa` | Testing & QA / 테스트 | sonnet | Read+Bash |
-| `squad-debug` | Debugging / 디버깅 | opus | Read+Bash |
-| `squad-docs` | Documentation / 문서 작성 | sonnet | Read+Write |
-| `squad-gitops` | Git automation / Git 자동화 | haiku | Read+Bash |
-| `squad-audit` | Security audit / 보안 감사 | opus | Read-only |
+| `squad-review` | Code review / 코드 리뷰 | opus | Read, Bash, Glob, Grep |
+| `squad-plan` | Planning & wireframes / 기획 | opus | Read, Write, Edit, Bash, Glob, Grep |
+| `squad-refactor` | Refactoring / 리팩토링 | opus | Read, Write, Edit, Bash, Glob, Grep |
+| `squad-qa` | Testing & QA / 테스트 | sonnet | Read, Bash, Glob, Grep |
+| `squad-debug` | Debugging / 디버깅 | opus | Read, Bash, Glob, Grep |
+| `squad-docs` | Documentation / 문서 작성 | sonnet | Read, Write, Edit, Glob, Grep |
+| `squad-gitops` | Git automation / Git 자동화 | haiku | Read, Bash, Glob, Grep |
+| `squad-audit` | Security audit / 보안 감사 | opus | Read, Bash, Glob, Grep |
 
 ---
 
@@ -79,26 +79,24 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 - `squad-audit` — Security scanning / 보안 스캐닝
 - `squad-docs` — Documentation generation / 문서 생성
 
-### SubagentStop Hook (Optional / 선택)
+### Pipeline Hooks / 파이프라인 훅
 
-Enable automatic pipeline chaining by adding to `~/.claude/settings.json`:
+`install.sh` automatically registers `SubagentStart` and `SubagentStop` hooks in `~/.claude/settings.json`.
 
-자동 파이프라인 체이닝을 위해 `~/.claude/settings.json`에 추가:
+`install.sh`가 `SubagentStart`/`SubagentStop` 훅을 `~/.claude/settings.json`에 자동 등록합니다.
+
+- **SubagentStart** — prints a banner when a squad agent starts / 에이전트 시작 시 배너 출력
+- **SubagentStop** — prints completion status + next pipeline step / 완료 상태 + 다음 단계 안내
+
+If `jq` is not installed, add manually to `~/.claude/settings.json`:
+
+`jq`가 없는 경우 수동으로 `~/.claude/settings.json`에 추가하세요:
 
 ```jsonc
 {
   "hooks": {
-    "SubagentStop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "zsh ~/.claude/hooks/subagent-chain.sh"
-          }
-        ]
-      }
-    ]
+    "SubagentStart": [{ "matcher": "", "hooks": [{ "type": "command", "command": "zsh ~/.claude/hooks/subagent-chain.sh" }] }],
+    "SubagentStop":  [{ "matcher": "", "hooks": [{ "type": "command", "command": "zsh ~/.claude/hooks/subagent-chain.sh" }] }]
   }
 }
 ```
@@ -183,7 +181,7 @@ Place `.claude/agents/squad-review.md` in your project to override the global ve
 name: squad-review
 description: >
   Expert code review for MyProject.
-tools: Read, Grep, Glob, Bash
+tools: Read, Bash, Glob, Grep
 model: opus
 ---
 
@@ -201,9 +199,9 @@ model: opus
 bash install.sh --uninstall
 ```
 
-This removes only Squad Agent files from `~/.claude/`. Backup files (`.bak`) are preserved.
+This removes only Squad Agent files from `~/.claude/`. Backup files (`.bak`) are preserved. Hook entries in `settings.json` must be removed manually.
 
-Squad Agent 파일만 `~/.claude/`에서 제거합니다. 백업 파일(`.bak`)은 유지됩니다.
+Squad Agent 파일만 `~/.claude/`에서 제거합니다. 백업 파일(`.bak`)은 유지됩니다. `settings.json`의 훅 항목은 수동으로 제거해야 합니다.
 
 ---
 

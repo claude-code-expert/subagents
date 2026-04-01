@@ -1,6 +1,7 @@
-#!/bin/bash
-# subagent-chain.sh — Squad Agent pipeline chaining hook
-# Register in ~/.claude/settings.json → hooks.SubagentStop
+#!/usr/bin/env zsh
+# subagent-chain.sh — Squad Agent banner + pipeline chaining hook
+# Handles both SubagentStart and SubagentStop events
+# Registered automatically by install.sh
 set -euo pipefail
 
 TMPFILE=$(mktemp)
@@ -10,25 +11,44 @@ cat > "$TMPFILE"
 if ! command -v jq &>/dev/null; then exit 0; fi
 if ! jq empty < "$TMPFILE" 2>/dev/null; then exit 0; fi
 
-AGENT_NAME=$(jq -r '.agent_name // empty' < "$TMPFILE")
+EVENT=$(jq -r '.hook_event_name // empty' < "$TMPFILE")
+AGENT_NAME=$(jq -r '.agent_type // .agent_name // empty' < "$TMPFILE")
 
-case "$AGENT_NAME" in
-  "squad-plan")
-    echo "✅ Plan done. Next → implement, then /squad-review" ;;
-  "squad-review")
-    echo "✅ Review done. REQUEST_CHANGES → /squad-refactor. APPROVE → /squad-qa" ;;
-  "squad-refactor")
-    echo "✅ Refactor done. Next → /squad-review to verify, then /squad-qa" ;;
-  "squad-qa")
-    echo "✅ QA done. Next → /squad-gitops commit" ;;
-  "squad-debug")
-    echo "✅ Debug done. Implement the recommended fix." ;;
-  "squad-docs")
-    echo "✅ Docs done. Documentation updated." ;;
-  "squad-gitops")
-    echo "✅ Gitops done. Git artifacts generated." ;;
-  "squad-audit")
-    echo "✅ Audit done. Address findings before deployment." ;;
-esac
+# Only handle squad-* agents
+case "$AGENT_NAME" in squad-*) ;; *) exit 0 ;; esac
+
+DISPLAY_NAME="${AGENT_NAME#squad-}"
+
+if [ "$EVENT" = "SubagentStart" ]; then
+  echo "╭─────────────────────────────────────────╮"
+  echo "│ 🚀 Squad Agent: ${DISPLAY_NAME}"
+  echo "│ Status: RUNNING (independent context)"
+  echo "╰─────────────────────────────────────────╯"
+
+elif [ "$EVENT" = "SubagentStop" ]; then
+  echo "╭─────────────────────────────────────────╮"
+  echo "│ ✅ Squad Agent: ${DISPLAY_NAME}"
+  echo "│ Status: COMPLETED (context released)"
+  echo "╰─────────────────────────────────────────╯"
+
+  case "$AGENT_NAME" in
+    "squad-plan")
+      echo "│ Next → implement, then /squad-review" ;;
+    "squad-review")
+      echo "│ Next → /squad-refactor or /squad-qa" ;;
+    "squad-refactor")
+      echo "│ Next → /squad-review to verify" ;;
+    "squad-qa")
+      echo "│ Next → /squad-gitops commit" ;;
+    "squad-debug")
+      echo "│ Next → implement the fix" ;;
+    "squad-docs")
+      echo "│ Documentation updated." ;;
+    "squad-gitops")
+      echo "│ Git artifacts generated." ;;
+    "squad-audit")
+      echo "│ Address findings before deploy." ;;
+  esac
+fi
 
 exit 0

@@ -85,14 +85,14 @@ product requirements and technical implementation.
 - Run tests (→ /squad-qa)
 - Commit or push changes (→ /squad-gitops)
 
-## Bash Whitelist
+## Allowed Commands
 
 ```
 git log, git diff, git status, git show
 cat, grep, find, wc, head, tail, ls
 ```
 
-## Bash BLACKLIST
+## NEVER Run
 
 ```
 npm, npx, node (execution = other agents' job)

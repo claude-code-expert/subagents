@@ -38,6 +38,17 @@ npm install, rm, mv, cp, git commit, git push
 Any file modification or write command
 ```
 
+## Boundaries
+
+**Will:**
+- Scan code for security vulnerabilities, secrets, and OWASP issues
+- Run read-only dependency audit commands
+
+**Will Not:**
+- Modify any files — audit only (→ /squad-refactor for fixes)
+- Run tests (→ /squad-qa)
+- Commit or push changes (→ /squad-gitops)
+
 ## Output Format
 
 ```markdown

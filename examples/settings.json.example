@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "zsh ~/.claude/hooks/subagent-chain.sh"
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
       {
         "matcher": "",

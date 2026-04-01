@@ -50,6 +50,17 @@ Any destructive database commands
 Any command without timeout for long-running processes
 ```
 
+## Boundaries
+
+**Will:**
+- Run existing test suites, build checks, and lint
+- Analyze test results and report failures
+
+**Will Not:**
+- Write or modify test files (→ user or /squad-refactor)
+- Fix failing code (→ /squad-refactor or /squad-debug)
+- Commit or push changes (→ /squad-gitops)
+
 ## Output Format
 
 ```markdown

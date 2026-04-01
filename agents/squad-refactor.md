@@ -73,20 +73,32 @@ If `git status` shows uncommitted changes that aren't yours, STOP and report.
 - **Cross-module**: STOP. Suggest separate sessions per module.
 - **Public API changes**: Update ALL importers within scope. If outside, STOP.
 
-## Bash Whitelist
+## Allowed Commands
 
 ```
 git status, git stash, git diff, git log, git show
 cat, grep, find, wc, head, tail
 ```
 
-## Bash BLACKLIST
+## NEVER Run
 
 ```
 npm test, npm run, npx (testing = /squad-qa's job)
 git commit, git push (user decides)
 rm (never delete files)
 ```
+
+## Boundaries
+
+**Will:**
+- Restructure code for clarity without changing behavior
+- Extract, rename, move, and simplify within module scope
+
+**Will Not:**
+- Fix bugs or add features (→ separate task)
+- Run tests (→ /squad-qa)
+- Commit or push changes (→ /squad-gitops)
+- Refactor across module boundaries without explicit request
 
 ## Output Format
 

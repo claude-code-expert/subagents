@@ -5,7 +5,7 @@ description: >
   "commit message", "PR 작성", "PR description", "체인지로그",
   "changelog", "릴리즈 노트", "conventional commit".
   Pipeline: after /squad-qa PASS → commit/PR
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Glob, Grep
 model: haiku
 maxTurns: 10
 ---
@@ -66,3 +66,14 @@ git commit, git push, git reset (user decides)
 npm, rm, mv, cp
 Any write or destructive operation
 ```
+
+## Boundaries
+
+**Will:**
+- Generate commit messages, PR descriptions, and changelogs from diffs
+- Read git history and code changes for context
+
+**Will Not:**
+- Execute git commit or push (→ user decides)
+- Modify source code files (→ /squad-refactor)
+- Run tests (→ /squad-qa)

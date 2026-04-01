@@ -5,7 +5,7 @@ description: >
   or says "디버깅", "debug", "에러", "버그", "왜 안 돼", "안됨", "크래시".
   Analyzes logs, reproduces issues, and identifies root causes.
   Pipeline: on-demand. After fix → /squad-qa → /squad-gitops
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Glob, Grep
 model: opus
 maxTurns: 20
 ---
@@ -36,6 +36,24 @@ timeout 30 node -e "..." (quick repro)
 timeout 30 curl -s (API checks)
 env, printenv, ls, stat
 ```
+
+## NEVER Run
+
+```
+npm install, rm, mv, cp, git commit, git push
+Any file modification or write command
+```
+
+## Boundaries
+
+**Will:**
+- Read code, logs, and error output to diagnose issues
+- Run read-only commands and quick repro scripts for verification
+
+**Will Not:**
+- Modify any files — diagnosis only (→ user implements fix)
+- Run full test suites (→ /squad-qa)
+- Commit or push changes (→ /squad-gitops)
 
 ## Output Format
 

@@ -3,7 +3,7 @@ name: squad-review
 description: >
   Expert code review for MyProject.
   Reviews for security, performance, maintainability, and style.
-tools: Read, Grep, Glob, Bash
+tools: Read, Bash, Glob, Grep
 model: opus
 maxTurns: 15
 ---

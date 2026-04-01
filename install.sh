@@ -7,9 +7,15 @@
 #   Version: bash install.sh --version
 set -euo pipefail
 
-VERSION="1.1.0"
 REPO="claude-code-expert/subagents"
 RELEASE_BASE="https://github.com/$REPO/releases"
+
+# Read version from VERSION file if available (local install), else fallback
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/VERSION" ]; then
+  VERSION=$(cat "$(dirname "${BASH_SOURCE[0]}")/VERSION")
+else
+  VERSION="1.1.0"
+fi
 
 AGENTS_DIR="$HOME/.claude/agents"
 COMMANDS_DIR="$HOME/.claude/commands"
@@ -109,6 +115,62 @@ find_source_dir() {
   return 1
 }
 
+# ─── Register SubagentStop hook ──────────────────────
+
+register_hook() {
+  local settings="$HOME/.claude/settings.json"
+  local hook_cmd="zsh ~/.claude/hooks/subagent-chain.sh"
+  local new_hook='[{"matcher":"","hooks":[{"type":"command","command":"'"$hook_cmd"'"}]}]'
+
+  # If jq is not available, print manual instructions
+  if ! command -v jq &>/dev/null; then
+    yellow "Note: jq not found — cannot auto-register hooks."
+    yellow "Add SubagentStart and SubagentStop hooks manually to $settings"
+    return 0
+  fi
+
+  # If settings.json doesn't exist, create minimal one
+  if [ ! -f "$settings" ]; then
+    echo '{}' > "$settings"
+  fi
+
+  local registered=0
+
+  # Register SubagentStart hook
+  if jq -e '.hooks.SubagentStart' "$settings" &>/dev/null; then
+    green "  SubagentStart hook already registered."
+  else
+    local tmp
+    tmp=$(mktemp)
+    if jq --argjson hook "$new_hook" '.hooks.SubagentStart = $hook' "$settings" > "$tmp" 2>/dev/null; then
+      mv "$tmp" "$settings"
+      green "  SubagentStart hook registered"
+      ((registered++)) || true
+    else
+      rm -f "$tmp"
+    fi
+  fi
+
+  # Register SubagentStop hook
+  if jq -e '.hooks.SubagentStop' "$settings" &>/dev/null; then
+    green "  SubagentStop hook already registered."
+  else
+    local tmp
+    tmp=$(mktemp)
+    if jq --argjson hook "$new_hook" '.hooks.SubagentStop = $hook' "$settings" > "$tmp" 2>/dev/null; then
+      mv "$tmp" "$settings"
+      green "  SubagentStop hook registered"
+      ((registered++)) || true
+    else
+      rm -f "$tmp"
+    fi
+  fi
+
+  if [ "$registered" -eq 0 ]; then
+    return 0
+  fi
+}
+
 # ─── Install from source directory ───────────────────
 
 do_install() {
@@ -157,6 +219,9 @@ do_install() {
     green "  Installed $n"
   done
 
+  # Auto-register SubagentStop hook in settings.json
+  register_hook
+
   cat << 'DONE'
 
 ================================
@@ -166,17 +231,7 @@ do_install() {
   Next steps:
     1. Restart Claude Code
     2. Run /agents to verify
-    3. (Optional) Add SubagentStop hook to ~/.claude/settings.json:
-
-       "hooks": {
-         "SubagentStop": [{
-           "matcher": "",
-           "hooks": [{
-             "type": "command",
-             "command": "zsh ~/.claude/hooks/subagent-chain.sh"
-           }]
-         }]
-       }
+    3. Try /squad-review to start
 
 ================================
 
@@ -238,14 +293,43 @@ main() {
           exit 1
         fi
 
+        # Validate tag format (vX.Y.Z)
+        if [[ ! "$latest_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          red "Error: Invalid release tag format: $latest_tag"
+          red "Expected format: vX.Y.Z (e.g., v1.1.0)"
+          exit 1
+        fi
+
         green "Latest version: $latest_tag"
 
         local archive_url="$RELEASE_BASE/download/$latest_tag/squad-agents-${latest_tag}.tar.gz"
+        local checksum_url="$RELEASE_BASE/download/$latest_tag/squad-agents-${latest_tag}.tar.gz.sha256"
         echo "Downloading $archive_url ..."
 
         if ! curl -sL "$archive_url" -o "$_TMPDIR/squad.tar.gz"; then
           red "Error: Download failed."
           exit 1
+        fi
+
+        # Verify checksum if available
+        if curl -sL "$checksum_url" -o "$_TMPDIR/squad.tar.gz.sha256" 2>/dev/null; then
+          if command -v shasum &>/dev/null; then
+            local expected actual
+            expected=$(awk '{print $1}' < "$_TMPDIR/squad.tar.gz.sha256")
+            actual=$(shasum -a 256 "$_TMPDIR/squad.tar.gz" | awk '{print $1}')
+            if [ "$expected" != "$actual" ]; then
+              red "Error: Checksum verification failed!"
+              red "  Expected: $expected"
+              red "  Actual:   $actual"
+              red "The downloaded file may be corrupted or tampered with."
+              exit 1
+            fi
+            green "Checksum verified."
+          else
+            yellow "Warning: shasum not found — skipping checksum verification."
+          fi
+        else
+          yellow "Warning: No checksum file found — skipping verification."
         fi
 
         tar xzf "$_TMPDIR/squad.tar.gz" -C "$_TMPDIR"

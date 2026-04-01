@@ -23,7 +23,7 @@ by reading source code directly.
 
 ## Workflow
 
-1. Scan project structure: `find . -name "*.ts" -o -name "*.tsx" | head -50`
+1. Scan project structure using Glob (e.g., `**/*.ts`, `**/*.tsx`) to identify source files.
 2. Read package.json or equivalent for metadata.
 3. Identify existing docs and freshness vs code.
 4. Generate or update documentation.
