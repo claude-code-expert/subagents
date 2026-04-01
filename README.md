@@ -10,7 +10,7 @@
 
 ## Quick Start
 
-### Option 1: One-line Install (curl)
+### Option 1: One-line Install (curl) — Recommended
 
 ```bash
 curl -sL https://raw.githubusercontent.com/claude-code-expert/subagents/main/install.sh | bash
