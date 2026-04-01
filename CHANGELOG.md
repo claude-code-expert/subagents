@@ -6,22 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **Cross-platform notifications**: Hook now supports macOS (`osascript`), Linux (`notify-send`), and Windows/WSL (`PowerShell`) with auto-detection
-- **Notifications documentation**: Full bilingual (EN/KO) section in README covering notification content, platform support, and customization (disable, sound change, agent filter, alternative tools like Slack/ntfy)
-
-## [1.2.0] - 2026-04-01
+- **Cross-platform notifications**: `subagent-chain.sh` now auto-detects OS and sends native notifications — macOS (`osascript` + `afplay`), Linux (`notify-send` + `paplay`/`aplay`), Windows/WSL (`PowerShell` popup)
+- **Notification customization guide**: README documents how to disable notifications, change sounds, filter by agent, or replace with Slack/ntfy webhooks
+- **Subagent verification**: All 8 agents confirmed as independent sub-agents (`isSidechain: true` in transcript) with correct model routing — opus (review, plan, refactor, debug, audit), sonnet (qa, docs), haiku (gitops)
+- **docs/ARCHITECTURE.md**: Added Subagent Verification section with test results and methodology
 
 ### Changed
 
-- **subagent-chain.sh**: Replaced terminal echo with macOS notifications (`osascript`) + sound (`afplay`). Claude Code TUI swallows stdout/stderr from SubagentStart/Stop hooks, so native OS notifications are the only visible channel.
-- **README.md**: Updated hook documentation to reflect macOS notification approach, added subagent verification table with `isSidechain: true` proof for all 8 agents
-- **docs/ARCHITECTURE.md**: Added Subagent Verification section with full test results and methodology
-
-### Verified
-
-- All 8 agents confirmed running as independent sub-agents (`isSidechain: true` in transcript)
-- Model routing verified: opus (review, plan, refactor, debug, audit), sonnet (qa, docs), haiku (gitops)
-- Each agent receives unique `agentId` and isolated transcript file
+- **subagent-chain.sh**: Replaced terminal `echo` with OS-native notifications. Claude Code is a TUI app — `stdout`/`stderr` from `SubagentStart`/`SubagentStop` hooks are not displayed in the terminal, so native notifications are the only visible channel
+- **README.md**: Updated Pipeline Hooks section with cross-platform notification docs, added Notifications section with platform support table, bilingual (EN/KO) throughout with anchor links
 
 ## [1.1.3] - 2026-04-01
 
