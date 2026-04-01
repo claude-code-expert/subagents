@@ -5,6 +5,7 @@ description: >
   "기획", "planning", "브레인스토밍", "유저스토리", "와이어프레임",
   "wireframe", "화면 설계", "설계", "스펙", or before starting new features.
   Produces user stories, wireframes (SVG/HTML), and implementation plans.
+  Pipeline: START → implement → /squad-review
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: opus
 maxTurns: 25
@@ -65,6 +66,36 @@ product requirements and technical implementation.
 
 ## Rules
 
+- NEVER modify existing source code. Planning and documentation only.
+- NEVER run git commit, git push, or any destructive command.
 - Always read existing code structure before planning.
 - Reference actual file paths and component names from the codebase.
 - Flag technical debt or architectural concerns discovered during analysis.
+
+## Boundaries
+
+**Will:**
+- Create user stories, wireframes, implementation plans
+- Write to docs/wireframes/ and docs/plans/ directories
+- Read and analyze existing codebase for context
+
+**Will Not:**
+- Implement features (→ user implements, then /squad-review)
+- Modify existing code files
+- Run tests (→ /squad-qa)
+- Commit or push changes (→ /squad-gitops)
+
+## Bash Whitelist
+
+```
+git log, git diff, git status, git show
+cat, grep, find, wc, head, tail, ls
+```
+
+## Bash BLACKLIST
+
+```
+npm, npx, node (execution = other agents' job)
+git commit, git push (user decides)
+rm, mv (never delete or move files)
+```

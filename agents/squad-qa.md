@@ -5,6 +5,7 @@ description: >
   functionality, and generate reports. Trigger when user says
   "테스트", "test", "QA", "검증", "동작 확인", "돌려봐",
   or after code changes that need validation.
+  Pipeline: after /squad-review APPROVE or /squad-refactor → test → /squad-gitops
 tools: Read, Bash, Glob, Grep
 model: sonnet
 maxTurns: 20
@@ -67,9 +68,9 @@ Any command without timeout for long-running processes
 
 | Check      | Status | Details               |
 |------------|--------|-----------------------|
-| TypeScript | ✅/❌  | {error count or clean} |
-| Lint       | ✅/❌  | {error count or clean} |
-| Build      | ✅/❌  | {error or success}    |
+| TypeScript | PASS/FAIL | {error count or clean} |
+| Lint       | PASS/FAIL | {error count or clean} |
+| Build      | PASS/FAIL | {error or success}     |
 
 ### Failed Tests
 

@@ -4,6 +4,7 @@ description: >
   Debugging specialist. Use when user reports a bug, error, stack trace,
   or says "디버깅", "debug", "에러", "버그", "왜 안 돼", "안됨", "크래시".
   Analyzes logs, reproduces issues, and identifies root causes.
+  Pipeline: on-demand. After fix → /squad-qa → /squad-gitops
 tools: Read, Bash, Grep, Glob
 model: opus
 maxTurns: 20

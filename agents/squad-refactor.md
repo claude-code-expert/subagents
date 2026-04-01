@@ -6,6 +6,7 @@ description: >
   abstractions. Also trigger when user says "리팩토링", "refactor", "정리",
   "클린업", "cleanup", "추출", "extract", "분리", "중복 제거", "DRY".
   Scope: up to module/directory level. Does NOT run tests — delegate to /squad-qa.
+  Pipeline: after /squad-review REQUEST_CHANGES → refactor → /squad-review (re-verify)
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: opus
 maxTurns: 25
