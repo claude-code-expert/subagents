@@ -85,12 +85,12 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 
 `install.sh`가 `SubagentStart`/`SubagentStop` 훅을 `~/.claude/settings.json`에 자동 등록합니다.
 
-- **SubagentStart** — macOS notification + sound when a squad agent starts / 에이전트 시작 시 macOS 알림 + 사운드
-- **SubagentStop** — macOS notification with next pipeline step / 완료 알림 + 다음 단계 안내
+- **SubagentStart** — OS notification + sound when a squad agent starts / 에이전트 시작 시 OS 알림 + 사운드
+- **SubagentStop** — OS notification with next pipeline step / 완료 알림 + 다음 단계 안내
 
-> **Note**: Claude Code is a TUI app — `stdout`/`stderr` from SubagentStart/Stop hooks are not displayed in the terminal. Notifications use `osascript` + `afplay` instead.
+> **Note**: Claude Code is a TUI app — `stdout`/`stderr` from SubagentStart/Stop hooks are not displayed in the terminal. The hook uses OS-native notifications instead. See [Notifications](#notifications--알림) for details.
 >
-> **참고**: Claude Code는 TUI 앱이라 SubagentStart/Stop 훅의 `stdout`/`stderr`가 터미널에 표시되지 않습니다. 대신 `osascript` + `afplay`로 알림합니다.
+> **참고**: Claude Code는 TUI 앱이라 SubagentStart/Stop 훅의 `stdout`/`stderr`가 터미널에 표시되지 않습니다. 대신 OS 네이티브 알림을 사용합니다. 자세한 내용은 [알림](#notifications--알림) 섹션을 참고하세요.
 
 If `jq` is not installed, add manually to `~/.claude/settings.json`:
 
@@ -125,6 +125,120 @@ All 8 agents are verified to run as independent sub-agents (`isSidechain: true`)
 Each agent gets a unique `agentId`, separate transcript file, and isolated execution context managed by Claude Code internally.
 
 각 에이전트는 고유한 `agentId`, 별도의 transcript 파일, Claude Code가 관리하는 격리된 실행 컨텍스트를 가집니다.
+
+---
+
+## Notifications / 알림
+
+When a squad agent starts or completes, the hook sends an **OS-native notification** with sound. This works across macOS, Linux, and Windows (WSL).
+
+Squad 에이전트가 시작되거나 완료되면 훅이 **OS 네이티브 알림**과 사운드를 전송합니다. macOS, Linux, Windows(WSL) 모두 지원합니다.
+
+### What you'll see / 알림 내용
+
+| Event / 이벤트 | Notification Title | Notification Body | Sound |
+|-------|---------------------|-------------------|-------|
+| Agent starts / 시작 | 🚀 Squad: `{agent}` | Status: RUNNING | Pop (macOS) / message.oga (Linux) |
+| Agent completes / 완료 | ✅ Squad: `{agent}` | COMPLETED → next step | Glass (macOS) / message.oga (Linux) |
+
+**Example** / 예시: When running `/squad-review`, you'll see: / `/squad-review` 실행 시:
+
+```
+🚀 Squad: review          →  ✅ Squad: review
+"Status: RUNNING"             "COMPLETED → /squad-refactor or /squad-qa"
+```
+
+### Platform Support / 플랫폼 지원
+
+| Platform / 플랫폼 | Notification / 알림 | Sound / 사운드 | Requirement / 요구사항 |
+|---------|--------------|-------|-------------|
+| **macOS** | `osascript` (Notification Center) | `afplay` (Pop.aiff / Glass.aiff) | Built-in / 기본 내장 |
+| **Linux** | `notify-send` (libnotify) | `paplay` or `aplay` | `sudo apt install libnotify-bin` |
+| **Windows (WSL)** | PowerShell popup | — | WSL auto-detected / 자동 감지 |
+| **Windows (native)** | PowerShell popup | — | Git Bash / MSYS2 |
+
+### Customizing Notifications / 알림 설정 변경
+
+#### Disable notifications / 알림 끄기
+
+Remove the hook entries from `~/.claude/settings.json`:
+
+`~/.claude/settings.json`에서 훅 항목을 제거하세요:
+
+```bash
+# Using jq
+jq 'del(.hooks.SubagentStart, .hooks.SubagentStop)' ~/.claude/settings.json > tmp.json && mv tmp.json ~/.claude/settings.json
+```
+
+Or manually delete the `SubagentStart` and `SubagentStop` keys from the `hooks` object.
+
+또는 `hooks` 객체에서 `SubagentStart`와 `SubagentStop` 키를 수동으로 삭제하세요.
+
+#### Disable sound only / 사운드만 끄기
+
+Edit `~/.claude/hooks/subagent-chain.sh` and comment out the `play_sound` lines:
+
+`~/.claude/hooks/subagent-chain.sh`를 편집하고 `play_sound` 라인을 주석 처리하세요:
+
+```bash
+# play_sound "Pop"    # comment out to disable start sound
+# play_sound "Glass"  # comment out to disable stop sound
+```
+
+#### Change sound / 사운드 변경
+
+**macOS**: Available sounds are in `/System/Library/Sounds/`. Common options:
+
+**macOS**: 사용 가능한 사운드는 `/System/Library/Sounds/`에 있습니다:
+
+```
+Basso.aiff    Blow.aiff    Bottle.aiff    Frog.aiff    Funk.aiff
+Glass.aiff    Hero.aiff    Morse.aiff     Ping.aiff    Pop.aiff
+Purr.aiff     Sosumi.aiff  Submarine.aiff Tink.aiff
+```
+
+Edit the `play_sound` function in `~/.claude/hooks/subagent-chain.sh` to change sounds.
+
+`~/.claude/hooks/subagent-chain.sh`의 `play_sound` 함수를 편집하여 사운드를 변경하세요.
+
+**Linux**: Default sounds use freedesktop paths. Point to any `.oga` or `.wav` file:
+
+**Linux**: 기본 freedesktop 경로를 사용합니다. 임의의 `.oga` 또는 `.wav` 파일로 지정 가능:
+
+```bash
+paplay /path/to/your/sound.oga
+```
+
+#### Notification only for specific agents / 특정 에이전트만 알림 받기
+
+Edit the agent filter in `~/.claude/hooks/subagent-chain.sh`:
+
+`~/.claude/hooks/subagent-chain.sh`에서 에이전트 필터를 편집하세요:
+
+```bash
+# Default: all squad agents
+case "$AGENT_NAME" in squad-*) ;; *) exit 0 ;; esac
+
+# Example: only review and audit
+case "$AGENT_NAME" in squad-review|squad-audit) ;; *) exit 0 ;; esac
+```
+
+#### Use a different notification tool / 다른 알림 도구 사용
+
+You can replace the `notify()` function in `~/.claude/hooks/subagent-chain.sh`. Examples:
+
+`~/.claude/hooks/subagent-chain.sh`의 `notify()` 함수를 교체할 수 있습니다:
+
+```bash
+# Slack webhook
+curl -s -X POST "$SLACK_WEBHOOK_URL" -d "{\"text\":\"${title}: ${body}\"}" &
+
+# ntfy.sh (self-hosted or public)
+curl -s -d "${body}" "ntfy.sh/my-squad-topic" &
+
+# terminal-notifier (macOS, more options)
+terminal-notifier -title "${title}" -message "${body}" -sound default &
+```
 
 ---
 
