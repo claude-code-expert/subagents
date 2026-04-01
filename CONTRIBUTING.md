@@ -18,14 +18,52 @@ name: squad-{name}
 description: >
   What this agent does. Include trigger keywords.
   Use PROACTIVELY if it should auto-invoke.
-tools: Read, Grep, Glob
+  Pipeline: where this agent sits in the workflow
+tools: Read, Bash, Glob, Grep
 model: opus
 maxTurns: 15
 ---
 
-System prompt for the agent goes here.
-Describe its role, rules, process, and output format.
+You are a [role description].
+
+## Process
+1. Step 1...
+
+## Rules
+- NEVER [safety constraint]
+
+## Allowed Commands
 ```
+git log, git diff, ...
+```
+
+## NEVER Run
+```
+rm, git commit, ...
+```
+
+## Boundaries
+
+**Will:**
+- [explicit scope items]
+
+**Will Not:**
+- [explicit out-of-scope items] (→ /squad-{other})
+
+## Output Format
+```markdown
+## Report Title
+**Date**: {YYYY-MM-DD}
+...
+```
+```
+
+**Required sections for all agents / 모든 에이전트 필수 섹션:**
+- `## Rules` with at least one NEVER clause / NEVER 규칙 최소 1개
+- `## Allowed Commands` + `## NEVER Run` (if agent has Bash) / Bash 도구 시 필수
+- `## Boundaries` (Will/Will Not) for Write-enabled agents / Write 도구 시 필수
+- `## Output Format` with markdown template / 출력 형식 템플릿
+- `Pipeline:` line in description / description에 파이프라인 위치
 
 ### 2. Command definition: `commands/squad-{name}.md`
 
@@ -71,6 +109,18 @@ Add the new agent name to the `SQUAD_AGENTS` array in `install.sh`.
 
 ---
 
+## Tool Ordering Convention / 도구 순서 규칙
+
+Follow this canonical order for the `tools:` field:
+
+`tools:` 필드에 다음 표준 순서를 따르세요:
+
+- **Read-only**: `Read, Bash, Glob, Grep`
+- **Write (no Bash)**: `Read, Write, Edit, Glob, Grep`
+- **Write + Bash**: `Read, Write, Edit, Bash, Glob, Grep`
+
+---
+
 ## Pull Request Guidelines / PR 가이드라인
 
 1. One agent per PR / PR당 하나의 에이전트
@@ -78,6 +128,8 @@ Add the new agent name to the `SQUAD_AGENTS` array in `install.sh`.
 3. Test with `bash install.sh` locally / 로컬에서 설치 테스트
 4. Update README agent table if adding new agents / 새 에이전트 추가 시 README 테이블 갱신
 5. Use [Conventional Commits](https://www.conventionalcommits.org/) / Conventional Commits 사용
+6. All Write-enabled agents MUST have Boundaries section / Write 에이전트는 반드시 Boundaries 포함
+7. All Bash-enabled agents MUST have Allowed Commands + NEVER Run / Bash 에이전트는 명령어 제한 필수
 
 ---
 

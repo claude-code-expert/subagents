@@ -71,6 +71,8 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 
 - User stories (US-001...) + SVG/HTML wireframes (`docs/wireframes/`) + implementation plan
 - Analyzes existing code structure before designing
+- **Boundaries**: NEVER modifies source code. Writes only to `docs/wireframes/` and `docs/plans/`
+- **Bash restricted**: Whitelist (git, grep, cat, find) / Blacklist (npm, node, rm, mv)
 
 ### squad-refactor — Refactoring / 리팩토링
 
@@ -95,6 +97,7 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 
 - README, API docs, architecture docs, JSDoc/TSDoc
 - `<!-- auto-generated -->` markers for auto-generated sections
+- **Boundaries**: NEVER modifies source code logic. Documentation files and JSDoc comments only
 
 ### squad-gitops — Git Automation / Git 자동화
 
@@ -108,7 +111,28 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 
 ---
 
+## Pipeline Context / 파이프라인 컨텍스트
+
+Each agent's `description` includes a `Pipeline:` line indicating its position in the workflow. This provides workflow context both to Claude Code (for auto-delegation) and to the SubagentStop hook.
+
+각 에이전트의 `description`에 `Pipeline:` 라인이 포함되어 워크플로우 위치를 명시합니다. Claude Code의 자동 위임과 SubagentStop 훅 양쪽에 컨텍스트를 제공합니다.
+
+| Agent | Pipeline Position |
+|-------|-------------------|
+| squad-plan | `START → implement → /squad-review` |
+| squad-review | `APPROVE → /squad-qa, REQUEST_CHANGES → /squad-refactor` |
+| squad-refactor | `→ /squad-review (re-verify)` |
+| squad-qa | `→ /squad-gitops` |
+| squad-gitops | `after /squad-qa PASS → commit/PR` |
+| squad-debug | `on-demand. After fix → /squad-qa → /squad-gitops` |
+| squad-audit | `on-demand, typically before deployment` |
+| squad-docs | `on-demand, any time during development` |
+
 ## SubagentStop Chaining / 체이닝
+
+The `subagent-chain.sh` hook complements the Pipeline context by showing next-step guidance after each agent completes.
+
+`subagent-chain.sh` 훅은 에이전트 완료 후 다음 단계 안내를 표시하여 Pipeline 컨텍스트를 보완합니다.
 
 | Completed | Suggests |
 |-----------|----------|
@@ -133,6 +157,41 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 | squad-audit | opus | Security — can't afford to miss |
 
 Global override: `export CLAUDE_CODE_SUBAGENT_MODEL=sonnet`
+
+---
+
+## Tool Ordering Standard / 도구 순서 표준
+
+All agents follow a canonical tool ordering convention:
+
+모든 에이전트는 통일된 도구 순서 규칙을 따릅니다:
+
+| Type | Tools | Agents |
+|------|-------|--------|
+| Read-only | `Read, Bash, Glob, Grep` | audit, debug, gitops, review |
+| Read + Bash | `Read, Bash, Glob, Grep` | qa |
+| Write (no Bash) | `Read, Write, Edit, Glob, Grep` | docs |
+| Write + Bash | `Read, Write, Edit, Bash, Glob, Grep` | plan, refactor |
+
+### Bash Restriction Format / Bash 제한 형식
+
+All agents with Bash access use standardized sections:
+
+Bash 접근 권한이 있는 모든 에이전트는 표준화된 섹션을 사용합니다:
+
+```markdown
+## Allowed Commands
+
+```
+{whitelisted commands}
+```
+
+## NEVER Run
+
+```
+{blacklisted commands}
+```
+```
 
 ---
 
