@@ -25,12 +25,18 @@ SQUAD_COMMANDS=(
 )
 SQUAD_HOOKS=(subagent-chain.sh)
 
+# Global temp dir for cleanup
+_TMPDIR=""
+
 # ─── Helpers ──────────────────────────────────────────
 
 red()    { printf '\033[0;31m%s\033[0m\n' "$*"; }
 green()  { printf '\033[0;32m%s\033[0m\n' "$*"; }
 yellow() { printf '\033[0;33m%s\033[0m\n' "$*"; }
 bold()   { printf '\033[1m%s\033[0m\n' "$*"; }
+
+cleanup() { [ -n "$_TMPDIR" ] && rm -rf "$_TMPDIR" || true; }
+trap cleanup EXIT
 
 banner() {
   echo ""
@@ -93,7 +99,6 @@ uninstall() {
 
 find_source_dir() {
   local script_dir
-  # If running from a local clone
   if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if [ -d "$script_dir/agents" ] && [ -d "$script_dir/commands" ]; then
@@ -104,61 +109,10 @@ find_source_dir() {
   return 1
 }
 
-# ─── Remote install ───────────────────────────────────
+# ─── Install from source directory ───────────────────
 
-install_remote() {
-  banner
-  yellow "No local source found. Downloading latest release..."
-  echo ""
-
-  local tmpdir
-  tmpdir=$(mktemp -d)
-  trap 'rm -rf "$tmpdir"' EXIT
-
-  # Get latest release tag
-  local latest_tag
-  latest_tag=$(curl -sI "$RELEASE_BASE/latest" | grep -i '^location:' | sed 's|.*/||' | tr -d '\r\n')
-
-  if [ -z "$latest_tag" ]; then
-    red "Error: Could not determine latest release."
-    red "Please install manually from: $RELEASE_BASE"
-    exit 1
-  fi
-
-  green "Latest version: $latest_tag"
-
-  local archive_url="$RELEASE_BASE/download/$latest_tag/squad-agents-${latest_tag}.tar.gz"
-  echo "Downloading $archive_url ..."
-
-  if ! curl -sL "$archive_url" -o "$tmpdir/squad.tar.gz"; then
-    red "Error: Download failed."
-    exit 1
-  fi
-
-  tar xzf "$tmpdir/squad.tar.gz" -C "$tmpdir"
-
-  # Find the extracted directory
-  local src
-  src=$(find "$tmpdir" -name "agents" -type d -maxdepth 2 | head -1)
-  if [ -z "$src" ]; then
-    red "Error: Invalid archive — agents/ not found."
-    exit 1
-  fi
-  src=$(dirname "$src")
-
-  SOURCE_DIR="$src"
-  install_local
-}
-
-# ─── Local install ────────────────────────────────────
-
-install_local() {
-  banner
-
-  local src="${SOURCE_DIR:-}"
-  if [ -z "$src" ]; then
-    src=$(find_source_dir) || { install_remote; return; }
-  fi
+do_install() {
+  local src="$1"
 
   mkdir -p "$AGENTS_DIR" "$COMMANDS_DIR" "$HOOKS_DIR"
 
@@ -242,23 +196,72 @@ DONE
 
 # ─── Main ─────────────────────────────────────────────
 
-case "${1:-}" in
-  --uninstall|-u)
-    uninstall
-    ;;
-  --version|-v)
-    echo "Squad Agent v$VERSION"
-    ;;
-  --help|-h)
-    echo "Usage: bash install.sh [OPTIONS]"
-    echo ""
-    echo "Options:"
-    echo "  (no args)      Install Squad Agent"
-    echo "  --uninstall    Remove Squad Agent files"
-    echo "  --version      Show version"
-    echo "  --help         Show this help"
-    ;;
-  *)
-    install_local
-    ;;
-esac
+main() {
+  case "${1:-}" in
+    --uninstall|-u)
+      uninstall
+      ;;
+    --version|-v)
+      echo "Squad Agent v$VERSION"
+      ;;
+    --help|-h)
+      echo "Usage: bash install.sh [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  (no args)      Install Squad Agent"
+      echo "  --uninstall    Remove Squad Agent files"
+      echo "  --version      Show version"
+      echo "  --help         Show this help"
+      ;;
+    *)
+      banner
+
+      # Try local source first
+      local src=""
+      src=$(find_source_dir) || true
+
+      if [ -n "$src" ]; then
+        do_install "$src"
+      else
+        # Remote install: download latest release
+        yellow "No local source found. Downloading latest release..."
+        echo ""
+
+        _TMPDIR=$(mktemp -d)
+
+        local latest_tag
+        latest_tag=$(curl -sI "$RELEASE_BASE/latest" 2>/dev/null | grep -i '^location:' | sed 's|.*/||' | tr -d '\r\n') || true
+
+        if [ -z "$latest_tag" ]; then
+          red "Error: Could not determine latest release."
+          red "Please install manually: git clone https://github.com/$REPO.git && cd subagents && bash install.sh"
+          exit 1
+        fi
+
+        green "Latest version: $latest_tag"
+
+        local archive_url="$RELEASE_BASE/download/$latest_tag/squad-agents-${latest_tag}.tar.gz"
+        echo "Downloading $archive_url ..."
+
+        if ! curl -sL "$archive_url" -o "$_TMPDIR/squad.tar.gz"; then
+          red "Error: Download failed."
+          exit 1
+        fi
+
+        tar xzf "$_TMPDIR/squad.tar.gz" -C "$_TMPDIR"
+
+        local extracted
+        extracted=$(find "$_TMPDIR" -name "agents" -type d -maxdepth 2 | head -1) || true
+        if [ -z "$extracted" ]; then
+          red "Error: Invalid archive — agents/ not found."
+          exit 1
+        fi
+
+        do_install "$(dirname "$extracted")"
+      fi
+      ;;
+  esac
+}
+
+# Wrap in main() so curl|bash downloads the entire script before executing
+main "$@"
