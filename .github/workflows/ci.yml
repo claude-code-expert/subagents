@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck install.sh hooks/*.sh
+
+      - name: Validate agent files
+        run: |
+          echo "Checking agent files..."
+          for f in agents/squad-*.md; do
+            if ! head -1 "$f" | grep -q '^---'; then
+              echo "ERROR: $f missing frontmatter"
+              exit 1
+            fi
+            echo "  OK: $f"
+          done
+
+      - name: Validate command files
+        run: |
+          echo "Checking command files..."
+          for f in commands/squad*.md; do
+            if ! head -1 "$f" | grep -q '^---'; then
+              echo "ERROR: $f missing frontmatter"
+              exit 1
+            fi
+            echo "  OK: $f"
+          done
+
+      - name: Check install script runs
+        run: bash install.sh --version

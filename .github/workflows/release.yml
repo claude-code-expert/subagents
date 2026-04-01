@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Build archive
+        run: |
+          mkdir -p dist/squad-agents
+          cp -r agents commands hooks install.sh VERSION LICENSE README.md dist/squad-agents/
+          cd dist
+          tar czf "squad-agents-${{ steps.version.outputs.version }}.tar.gz" squad-agents/
+          cd ..
+          cp dist/*.tar.gz .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Squad Agent ${{ steps.version.outputs.version }}"
+          body: |
+            ## Install
+
+            **One-line:**
+            ```bash
+            curl -sL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+
+            **From archive:**
+            ```bash
+            tar xzf squad-agents-${{ steps.version.outputs.version }}.tar.gz
+            cd squad-agents
+            bash install.sh
+            ```
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+          files: |
+            squad-agents-${{ steps.version.outputs.version }}.tar.gz
+          generate_release_notes: true
