@@ -14,7 +14,7 @@ RELEASE_BASE="https://github.com/$REPO/releases"
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/VERSION" ]; then
   VERSION=$(cat "$(dirname "${BASH_SOURCE[0]}")/VERSION")
 else
-  VERSION="1.2.0"
+  VERSION="1.2.1"
 fi
 
 AGENTS_DIR="$HOME/.claude/agents"

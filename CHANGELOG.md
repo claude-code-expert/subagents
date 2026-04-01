@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-04-01
+
+### Added
+
+- **Cross-platform notifications**: Hook now supports macOS (`osascript`), Linux (`notify-send`), and Windows/WSL (`PowerShell`) with auto-detection
+- **Notifications documentation**: Full bilingual (EN/KO) section in README covering notification content, platform support, and customization (disable, sound change, agent filter, alternative tools like Slack/ntfy)
+
 ## [1.2.0] - 2026-04-01
 
 ### Changed
