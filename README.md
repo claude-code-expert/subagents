@@ -85,8 +85,12 @@ squad-plan → [implement] → squad-review → squad-qa → squad-gitops
 
 `install.sh`가 `SubagentStart`/`SubagentStop` 훅을 `~/.claude/settings.json`에 자동 등록합니다.
 
-- **SubagentStart** — prints a banner when a squad agent starts / 에이전트 시작 시 배너 출력
-- **SubagentStop** — prints completion status + next pipeline step / 완료 상태 + 다음 단계 안내
+- **SubagentStart** — macOS notification + sound when a squad agent starts / 에이전트 시작 시 macOS 알림 + 사운드
+- **SubagentStop** — macOS notification with next pipeline step / 완료 알림 + 다음 단계 안내
+
+> **Note**: Claude Code is a TUI app — `stdout`/`stderr` from SubagentStart/Stop hooks are not displayed in the terminal. Notifications use `osascript` + `afplay` instead.
+>
+> **참고**: Claude Code는 TUI 앱이라 SubagentStart/Stop 훅의 `stdout`/`stderr`가 터미널에 표시되지 않습니다. 대신 `osascript` + `afplay`로 알림합니다.
 
 If `jq` is not installed, add manually to `~/.claude/settings.json`:
 
@@ -100,6 +104,27 @@ If `jq` is not installed, add manually to `~/.claude/settings.json`:
   }
 }
 ```
+
+### Subagent Verification / 서브에이전트 검증
+
+All 8 agents are verified to run as independent sub-agents (`isSidechain: true`) with correct model routing:
+
+8개 에이전트 모두 독립 서브에이전트(`isSidechain: true`)로 실행되며, 모델 라우팅이 정확히 적용됨을 검증했습니다:
+
+| Agent | isSidechain | Model Applied |
+|-------|-------------|---------------|
+| squad-review | `true` | opus |
+| squad-plan | `true` | opus |
+| squad-refactor | `true` | opus |
+| squad-qa | `true` | sonnet |
+| squad-debug | `true` | opus |
+| squad-docs | `true` | sonnet |
+| squad-gitops | `true` | haiku |
+| squad-audit | `true` | opus |
+
+Each agent gets a unique `agentId`, separate transcript file, and isolated execution context managed by Claude Code internally.
+
+각 에이전트는 고유한 `agentId`, 별도의 transcript 파일, Claude Code가 관리하는 격리된 실행 컨텍스트를 가집니다.
 
 ---
 

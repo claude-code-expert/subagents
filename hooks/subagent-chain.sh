@@ -1,8 +1,11 @@
 #!/usr/bin/env zsh
-# subagent-chain.sh — Squad Agent banner + pipeline chaining hook
+# subagent-chain.sh — Squad Agent notification + pipeline chaining hook
 # Handles both SubagentStart and SubagentStop events
 # Registered automatically by install.sh
-set -euo pipefail
+#
+# NOTE: Claude Code is a TUI app — stdout/stderr from SubagentStart/Stop hooks
+# are not displayed in the terminal. We use macOS notifications + sound instead.
+set -uo pipefail
 
 TMPFILE=$(mktemp)
 trap 'rm -f "$TMPFILE"' EXIT
@@ -20,35 +23,23 @@ case "$AGENT_NAME" in squad-*) ;; *) exit 0 ;; esac
 DISPLAY_NAME="${AGENT_NAME#squad-}"
 
 if [ "$EVENT" = "SubagentStart" ]; then
-  echo "╭─────────────────────────────────────────╮"
-  echo "│ 🚀 Squad Agent: ${DISPLAY_NAME}"
-  echo "│ Status: RUNNING (independent context)"
-  echo "╰─────────────────────────────────────────╯"
+  osascript -e "display notification \"Status: RUNNING\" with title \"🚀 Squad: ${DISPLAY_NAME}\"" 2>/dev/null &
+  afplay /System/Library/Sounds/Pop.aiff 2>/dev/null &
 
 elif [ "$EVENT" = "SubagentStop" ]; then
-  echo "╭─────────────────────────────────────────╮"
-  echo "│ ✅ Squad Agent: ${DISPLAY_NAME}"
-  echo "│ Status: COMPLETED (context released)"
-  echo "╰─────────────────────────────────────────╯"
-
+  NEXT=""
   case "$AGENT_NAME" in
-    "squad-plan")
-      echo "│ Next → implement, then /squad-review" ;;
-    "squad-review")
-      echo "│ Next → /squad-refactor or /squad-qa" ;;
-    "squad-refactor")
-      echo "│ Next → /squad-review to verify" ;;
-    "squad-qa")
-      echo "│ Next → /squad-gitops commit" ;;
-    "squad-debug")
-      echo "│ Next → implement the fix" ;;
-    "squad-docs")
-      echo "│ Documentation updated." ;;
-    "squad-gitops")
-      echo "│ Git artifacts generated." ;;
-    "squad-audit")
-      echo "│ Address findings before deploy." ;;
+    "squad-plan")    NEXT="→ implement, then /squad-review" ;;
+    "squad-review")  NEXT="→ /squad-refactor or /squad-qa" ;;
+    "squad-refactor") NEXT="→ /squad-review to verify" ;;
+    "squad-qa")      NEXT="→ /squad-gitops commit" ;;
+    "squad-debug")   NEXT="→ implement the fix" ;;
+    "squad-docs")    NEXT="Documentation updated." ;;
+    "squad-gitops")  NEXT="Git artifacts generated." ;;
+    "squad-audit")   NEXT="Address findings before deploy." ;;
   esac
+  osascript -e "display notification \"COMPLETED ${NEXT}\" with title \"✅ Squad: ${DISPLAY_NAME}\"" 2>/dev/null &
+  afplay /System/Library/Sounds/Glass.aiff 2>/dev/null &
 fi
 
 exit 0
