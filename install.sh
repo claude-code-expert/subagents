@@ -7,8 +7,8 @@
 #   Version: bash install.sh --version
 set -euo pipefail
 
-VERSION="1.0.0"
-REPO="villainscode/Claude-Code-Expert"
+VERSION="1.1.0"
+REPO="claude-code-expert/subagents"
 RELEASE_BASE="https://github.com/$REPO/releases"
 
 AGENTS_DIR="$HOME/.claude/agents"
