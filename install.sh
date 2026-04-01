@@ -35,7 +35,7 @@ green()  { printf '\033[0;32m%s\033[0m\n' "$*"; }
 yellow() { printf '\033[0;33m%s\033[0m\n' "$*"; }
 bold()   { printf '\033[1m%s\033[0m\n' "$*"; }
 
-cleanup() { [ -n "$_TMPDIR" ] && rm -rf "$_TMPDIR" || true; }
+cleanup() { if [ -n "$_TMPDIR" ]; then rm -rf "$_TMPDIR"; fi; }
 trap cleanup EXIT
 
 banner() {
