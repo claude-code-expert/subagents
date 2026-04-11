@@ -220,25 +220,25 @@ squad-plan → [구현] → squad-review → squad-qa → squad-gitops
 Claude Code의 `UserPromptSubmit` 훅은 사용자가 프롬프트를 제출할 때마다 실행됩니다. Squad Router는 이 메커니즘을 활용합니다:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. 사용자가 프롬프트 입력                                          │
-│    "이 코드 보안 검사해줘"                                         │
-│                                                                 │
-│ 2. Claude Code가 훅 실행 (프롬프트가 Claude에 전달되기 전)           │
-│    stdin → {"prompt": "이 코드 보안 검사해줘"}                     │
-│                                                                 │
-│ 3. squad-router.sh가 키워드 매칭                                  │
-│    "보안" 감지 → AGENT="squad-audit"                              │
-│                                                                 │
-│ 4. stdout으로 JSON 출력 (context injection)                       │
+┌──────────────────────────────────────────────────────────────────┐
+│ 1. 사용자가 프롬프트 입력                                              │
+│    "이 코드 보안 검사해줘"                                            │
+│                                                                  │
+│ 2. Claude Code가 훅 실행 (프롬프트가 Claude에 전달되기 전)                │
+│    stdin → {"prompt": "이 코드 보안 검사해줘"}                        │
+│                                                                  │ 
+│ 3. squad-router.sh가 키워드 매칭                                    │
+│    "보안" 감지 → AGENT="squad-audit"                               │
+│                                                                  │ 
+│ 4. stdout으로 JSON 출력 (context injection)                        │
 │    {"hookSpecificOutput": {                                      │
 │      "hookEventName": "UserPromptSubmit",                        │
-│      "additionalContext": "[Squad Router] Use the squad-audit..." │
+│      "additionalContext": "[Squad Router] Use the squad-audit..."│
 │    }}                                                            │
-│                                                                 │
-│ 5. Claude가 주입된 컨텍스트를 보고 서브에이전트에 위임                  │
-│    → Agent(subagent_type="squad-audit", prompt="...")             │
-└─────────────────────────────────────────────────────────────────┘
+│                                                                  │
+│ 5. Claude가 주입된 컨텍스트를 보고 서브에이전트에 위임                      │
+│    → Agent(subagent_type="squad-audit", prompt="...")            │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 핵심은 `hookSpecificOutput.additionalContext`입니다. 이 필드로 출력한 텍스트는 Claude가 프롬프트를 처리할 때 system-reminder로 주입되어, Claude가 자연스럽게 해당 서브에이전트를 호출하도록 유도합니다. 프롬프트 자체는 변경되지 않습니다.

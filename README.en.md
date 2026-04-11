@@ -231,13 +231,13 @@ Claude Code's `UserPromptSubmit` hook fires every time the user submits a prompt
 │    "security" detected → AGENT="squad-audit"                    │
 │                                                                 │
 │ 4. Outputs JSON to stdout (context injection)                   │
-│    {"hookSpecificOutput": {                                      │
-│      "hookEventName": "UserPromptSubmit",                        │
-│      "additionalContext": "[Squad Router] Use the squad-audit..." │
-│    }}                                                            │
+│    {"hookSpecificOutput": {                                     │
+│      "hookEventName": "UserPromptSubmit",                       │
+│      "additionalContext": "[Squad Router] Use the squad-audit.."│
+│    }}                                                           │
 │                                                                 │
 │ 5. Claude sees injected context and delegates to subagent       │
-│    → Agent(subagent_type="squad-audit", prompt="...")            │
+│    → Agent(subagent_type="squad-audit", prompt="...")           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
