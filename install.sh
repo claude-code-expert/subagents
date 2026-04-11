@@ -267,6 +267,36 @@ do_install() {
 DONE
 }
 
+# ─── Register pre-commit hook (dev mode) ─────────────
+
+register_precommit() {
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    yellow "Not in a git repository — skipping pre-commit hook."
+    return 0
+  }
+
+  local hook_file="$repo_root/.git/hooks/pre-commit"
+
+  if [ -f "$hook_file" ] && grep -q "test-router.sh" "$hook_file" 2>/dev/null; then
+    green "  Pre-commit hook already registered."
+    return 0
+  fi
+
+  mkdir -p "$repo_root/.git/hooks"
+  cat > "$hook_file" << 'HOOK'
+#!/bin/bash
+set -euo pipefail
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+echo "Running squad-router tests..."
+bash "$REPO_ROOT/tests/test-router.sh" --quiet || exit 1
+bash "$REPO_ROOT/tests/test-files.sh" --quiet || exit 1
+echo "All tests passed."
+HOOK
+  chmod +x "$hook_file"
+  green "  Pre-commit hook installed at .git/hooks/pre-commit"
+}
+
 # ─── Main ─────────────────────────────────────────────
 
 main() {
@@ -277,12 +307,18 @@ main() {
     --version|-v)
       echo "Squad Agent v$VERSION"
       ;;
+    --dev)
+      banner
+      echo "Developer mode: registering pre-commit hook..."
+      register_precommit
+      ;;
     --help|-h)
       echo "Usage: bash install.sh [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  (no args)      Install Squad Agent"
       echo "  --uninstall    Remove Squad Agent files"
+      echo "  --dev          Register pre-commit test hook (contributors)"
       echo "  --version      Show version"
       echo "  --help         Show this help"
       ;;
