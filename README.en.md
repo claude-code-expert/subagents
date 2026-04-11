@@ -75,10 +75,11 @@ Subagents are invoked via Claude Code's built-in **Agent tool** — not by runni
 
 ### Version
 
-**v1.3.1** (current) — [Full changelog](CHANGELOG.md)
+**v1.3.2** (current) — [Full changelog](CHANGELOG.md)
 
 | Version | Key Changes |
 |---------|-------------|
+| v1.3.2 | 145 automated tests, pre-commit hook, router delegation enforcement, `run-all.sh` |
 | v1.3.1 | README restructure (KO/EN split), CI shellcheck fix, hook mechanism docs |
 | v1.3.0 | Squad Router hook (80 keywords, 3-phase matching, context injection) |
 | v1.2.1 | Cross-platform notifications (macOS/Linux/WSL), subagent verification |

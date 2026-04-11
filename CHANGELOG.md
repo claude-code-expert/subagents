@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2026-04-11
+
+### Added
+
+- **Automated test suite**: `tests/test-router.sh` (67 cases), `tests/test-files.sh` (78 cases), `tests/run-all.sh` unified runner
+- **Pre-commit hook**: `install.sh --dev` registers git pre-commit that runs all tests on commit
+- **Router enforcement**: `additionalContext` message changed to "MUST delegate" to ensure subagent execution
+
+### Changed
+
+- **CI pipeline**: Replaced manual frontmatter checks with `test-router.sh` + `test-files.sh`
+- **VERSION**: Bumped to 1.3.2
+
 ## [1.3.1] - 2026-04-11
 
 ### Changed

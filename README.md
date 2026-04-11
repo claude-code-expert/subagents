@@ -75,10 +75,11 @@ bash install.sh
 
 ### 버전
 
-**v1.3.1** (현재) — [전체 변경 이력](CHANGELOG.md)
+**v1.3.2** (현재) — [전체 변경 이력](CHANGELOG.md)
 
 | 버전 | 주요 변경 |
 |------|----------|
+| v1.3.2 | 자동 테스트 145건, pre-commit hook, 라우터 위임 강제, `run-all.sh` |
 | v1.3.1 | README 구조 개편 (KO/EN 분리), CI shellcheck 수정, 훅 메커니즘 문서화 |
 | v1.3.0 | Squad Router 훅 추가 (80 키워드, 3단계 매칭, context injection) |
 | v1.2.1 | 크로스 플랫폼 알림 (macOS/Linux/WSL), 서브에이전트 검증 완료 |
