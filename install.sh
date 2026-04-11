@@ -14,7 +14,7 @@ RELEASE_BASE="https://github.com/$REPO/releases"
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/VERSION" ]; then
   VERSION=$(cat "$(dirname "${BASH_SOURCE[0]}")/VERSION")
 else
-  VERSION="1.2.1"
+  VERSION="1.3.0"
 fi
 
 AGENTS_DIR="$HOME/.claude/agents"
@@ -29,7 +29,7 @@ SQUAD_COMMANDS=(
   squad squad-review squad-plan squad-refactor squad-qa
   squad-debug squad-docs squad-gitops squad-audit
 )
-SQUAD_HOOKS=(subagent-chain.sh)
+SQUAD_HOOKS=(subagent-chain.sh squad-router.sh)
 
 # Global temp dir for cleanup
 _TMPDIR=""
@@ -125,7 +125,7 @@ register_hook() {
   # If jq is not available, print manual instructions
   if ! command -v jq &>/dev/null; then
     yellow "Note: jq not found — cannot auto-register hooks."
-    yellow "Add SubagentStart and SubagentStop hooks manually to $settings"
+    yellow "Add SubagentStart, SubagentStop, and UserPromptSubmit hooks manually to $settings"
     return 0
   fi
 
@@ -160,6 +160,24 @@ register_hook() {
     if jq --argjson hook "$new_hook" '.hooks.SubagentStop = $hook' "$settings" > "$tmp" 2>/dev/null; then
       mv "$tmp" "$settings"
       green "  SubagentStop hook registered"
+      ((registered++)) || true
+    else
+      rm -f "$tmp"
+    fi
+  fi
+
+  # Register UserPromptSubmit hook (squad-router)
+  local router_cmd="bash ~/.claude/hooks/squad-router.sh"
+  local router_hook='[{"matcher":"","hooks":[{"type":"command","command":"'"$router_cmd"'"}]}]'
+
+  if jq -e '.hooks.UserPromptSubmit' "$settings" &>/dev/null; then
+    green "  UserPromptSubmit hook already registered."
+  else
+    local tmp
+    tmp=$(mktemp)
+    if jq --argjson hook "$router_hook" '.hooks.UserPromptSubmit = $hook' "$settings" > "$tmp" 2>/dev/null; then
+      mv "$tmp" "$settings"
+      green "  UserPromptSubmit hook registered (squad-router)"
       ((registered++)) || true
     else
       rm -f "$tmp"

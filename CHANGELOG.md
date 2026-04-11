@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-04-01
+
+### Added
+
+- **Squad Router Hook**: `UserPromptSubmit` hook that auto-detects keywords in user prompts and routes to the appropriate squad subagent via context injection
+  - 80 keywords (42 Korean / 38 English) across 8 agents
+  - 3-phase matching: skip conditions → conflict resolution (6 multi-word patterns) → general keywords (priority-ordered)
+  - Opt-out via `--no-route` (per-prompt), `SQUAD_ROUTER=off` (global), or slash commands (auto-skip)
+  - Uses `hookSpecificOutput` with `hookEventName` for reliable context injection
+- **docs/SQUAD-ROUTER-KEYWORDS.md**: Complete keyword reference with hit rates and exclusion rationale
+- **install.sh**: Auto-registers `UserPromptSubmit` hook in `settings.json` alongside existing SubagentStart/SubagentStop hooks
+
 ## [1.2.1] - 2026-04-01
 
 ### Added
