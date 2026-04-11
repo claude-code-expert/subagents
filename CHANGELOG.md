@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-04-11
+
+### Changed
+
+- **README restructure**: `README.md` → Korean (default), `README.en.md` → English (previously `README.ko.md` removed)
+- **Hook mechanism docs**: Added "동작 원리 / How It Works" section explaining UserPromptSubmit context injection flow
+- **Agent tool reference**: Updated all docs from "Task tool" to "Agent tool" to match current Claude Code API
+- **Version section**: Replaced token economics with version history table in both READMEs
+
+### Fixed
+
+- **shellcheck SC2221/SC2222**: Reordered glob patterns — `*"문서화"*` before `*"문서"*` to prevent unreachable pattern
+- **shellcheck SC1071**: Excluded zsh script (`subagent-chain.sh`) from CI shellcheck (unsupported shell)
+
 ## [1.3.0] - 2026-04-01
 
 ### Added
