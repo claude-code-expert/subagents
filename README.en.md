@@ -138,10 +138,19 @@ Per Anthropic docs, multi-agent workflows use roughly **4-7x more tokens** than 
 
 ### Why Use Subagents?
 
-1. **Context isolation** — 30k git diff stays in subagent only; main gets 2k summary
+1. **Context isolation & main context pollution prevention** — 30k git diff stays in subagent only; main gets 2k summary. As main context grows, token consumption scales proportionally per turn — subagents keep it lean
 2. **Tool scoping** — squad-review is Read-only. Hard constraint at tool level (not prompt)
 3. **Parallel execution** — Analyze multiple modules simultaneously
 4. **Model routing** — Security gets opus, commit messages get haiku for cost optimization
+
+> **Why subagents save tokens long-term:**
+>
+> 1. Per-operation, subagents cost more (85k vs 95k)
+> 2. But if 85k accumulates in main context, that 85k is re-sent as input tokens **every turn**
+> 3. With subagents, main stays at 26k → saves 59k input tokens per subsequent turn
+> 4. After just 10 turns: `59k × 10 = 590k` token savings — far exceeding the initial 10k overhead
+>
+> The longer your session, the greater the compounding value of subagents.
 
 ### Agent Definition Format
 

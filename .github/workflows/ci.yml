@@ -17,27 +17,11 @@ jobs:
           sudo apt-get install -y shellcheck
           shellcheck install.sh hooks/squad-router.sh
 
-      - name: Validate agent files
-        run: |
-          echo "Checking agent files..."
-          for f in agents/squad-*.md; do
-            if ! head -1 "$f" | grep -q '^---'; then
-              echo "ERROR: $f missing frontmatter"
-              exit 1
-            fi
-            echo "  OK: $f"
-          done
+      - name: Router keyword tests
+        run: bash tests/test-router.sh
 
-      - name: Validate command files
-        run: |
-          echo "Checking command files..."
-          for f in commands/squad*.md; do
-            if ! head -1 "$f" | grep -q '^---'; then
-              echo "ERROR: $f missing frontmatter"
-              exit 1
-            fi
-            echo "  OK: $f"
-          done
+      - name: File integrity tests
+        run: bash tests/test-files.sh
 
       - name: Check install script runs
         run: bash install.sh --version

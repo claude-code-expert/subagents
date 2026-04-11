@@ -110,7 +110,7 @@ if [ -z "$AGENT" ]; then
 fi
 
 # === Output: inject context via hookSpecificOutput ===
-CONTEXT="[Squad Router] Use the ${AGENT} subagent (via Agent tool with subagent_type=\"${AGENT}\") to handle this request. The user's prompt matched ${AGENT} keywords."
+CONTEXT="[Squad Router] IMPORTANT: You MUST delegate this task to the ${AGENT} subagent. Do NOT handle it directly in the main session. Invoke: Agent(subagent_type=\"${AGENT}\", prompt=\"<user's full request>\"). This is a hard requirement from the user's installed hook system."
 
 jq -n \
   --arg ctx "$CONTEXT" \
