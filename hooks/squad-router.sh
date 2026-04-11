@@ -85,8 +85,8 @@ if [ -z "$AGENT" ]; then
       AGENT="squad-refactor" ;;
 
     # 5. squad-docs (documentation)
-    *"문서"*|*"document"*|*"readme"*|*"리드미"*|\
-    *"jsdoc"*|*"tsdoc"*|*"주석"*|*"comment"*|*"문서화"*)
+    *"문서화"*|*"문서"*|*"document"*|*"readme"*|*"리드미"*|\
+    *"jsdoc"*|*"tsdoc"*|*"주석"*|*"comment"*)
       AGENT="squad-docs" ;;
 
     # 6. squad-gitops (git operations)
