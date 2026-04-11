@@ -73,6 +73,20 @@ Subagents are invoked via Claude Code's built-in **Agent tool** — not by runni
    - Subagent context is discarded
 ```
 
+### Version
+
+**v1.3.1** (current) — [Full changelog](CHANGELOG.md)
+
+| Version | Key Changes |
+|---------|-------------|
+| v1.3.1 | README restructure (KO/EN split), CI shellcheck fix, hook mechanism docs |
+| v1.3.0 | Squad Router hook (80 keywords, 3-phase matching, context injection) |
+| v1.2.1 | Cross-platform notifications (macOS/Linux/WSL), subagent verification |
+| v1.1.3 | SubagentStart/Stop banners, SHA256 checksum, auto hook registration |
+| v1.1.0 | Agent safety rules, pipeline context, tool ordering standardization |
+| v1.0.0 | 8 agents, 9 commands, SubagentStop hook, install script |
+
+<!--
 ### Honest Token Economics
 
 > **"Subagents save tokens" is a common misconception. They actually use MORE.**
@@ -120,6 +134,7 @@ Per Anthropic docs, multi-agent workflows use roughly **4-7x more tokens** than 
 | Enforcing tool restrictions (Read-only) | Tasks needing all tools |
 
 > **Bottom line:** Subagents are a **context hygiene tool**, not a token savings tool. They keep your main session clean so quality doesn't degrade. You pay more tokens total, but you get a better workspace.
+-->
 
 ### Why Use Subagents?
 
