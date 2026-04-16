@@ -354,6 +354,8 @@ Native OS notifications fire on every subagent start/stop:
 
 ## Usage Examples
 
+> 📖 **For detailed per-command usage and real-world scenarios**, see [docs/SQUAD-COMMANDS-GUIDE.en.md](docs/SQUAD-COMMANDS-GUIDE.en.md).
+
 ### New Feature
 
 ```

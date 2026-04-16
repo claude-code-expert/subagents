@@ -354,6 +354,8 @@ Claude Code의 `UserPromptSubmit` 훅은 사용자가 프롬프트를 제출할 
 
 ## 사용 예시
 
+> 📖 **명령어별 상세 사용법과 실전 시나리오**는 [docs/SQUAD-COMMANDS-GUIDE.md](docs/SQUAD-COMMANDS-GUIDE.md)를 참고하세요.
+
 ### 새 기능 개발
 
 ```
